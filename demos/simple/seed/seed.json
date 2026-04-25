@@ -33,6 +33,20 @@
 					"type": "image"
 				},
 				{
+					"slug": "hero_image_focus_x",
+					"label": "Encuadre hero X (%)",
+					"type": "number",
+					"defaultValue": 50,
+					"validation": { "min": 0, "max": 100 }
+				},
+				{
+					"slug": "hero_image_focus_y",
+					"label": "Encuadre hero Y (%)",
+					"type": "number",
+					"defaultValue": 50,
+					"validation": { "min": 0, "max": 100 }
+				},
+				{
 					"slug": "content",
 					"label": "Content",
 					"type": "portableText",
@@ -115,9 +129,12 @@
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "custom", "label": "About", "url": "/pages/about" },
-				{ "type": "custom", "label": "Posts", "url": "/posts" }
+				{ "type": "custom", "label": "Sobre mi", "url": "/sobre-mi" },
+				{ "type": "custom", "label": "Recursos", "url": "/blog" },
+				{ "type": "custom", "label": "Conferencias", "url": "/conferencias" },
+				{ "type": "custom", "label": "Eventos", "url": "/eventos-ia/" },
+				{ "type": "custom", "label": "Podcast", "url": "https://inboundmonsters.com/", "target": "_blank" },
+				{ "type": "custom", "label": "Trabaja conmigo", "url": "/contacto" }
 			]
 		}
 	],

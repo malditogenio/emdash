@@ -1,0 +1,10 @@
+---
+let melonCode = "";
+
+if (import.meta.env.DEV) {
+	const mod = await import("../dev-assets/melon.js?raw");
+	melonCode = mod.default;
+}
+---
+
+{import.meta.env.DEV && <script is:inline set:html={melonCode}></script>}
