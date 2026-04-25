@@ -2,11 +2,9 @@
 import { getEmDashCollection, getEntryTerms } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
-import PostCard from "../components/PostCard.astro";
 import { getReadingTime } from "../utils/reading-time";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts");
-
 Astro.cache.set(cacheHint);
 
 const sortedPosts = posts.toSorted((a, b) => {
@@ -15,434 +13,203 @@ const sortedPosts = posts.toSorted((a, b) => {
 	return dateB - dateA;
 });
 
-// Find the first post with a featured image for the hero
-const featuredPost = sortedPosts.find((p) => p.data.featured_image);
-const featuredIndex = featuredPost ? sortedPosts.indexOf(featuredPost) : -1;
-
-// Get remaining posts (exclude featured if found, limit to 6 for grid)
-const gridPosts = sortedPosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
-
-// Total posts shown = featured (if any) + grid posts
-const totalShown = (featuredPost ? 1 : 0) + gridPosts.length;
-const hasMorePosts = sortedPosts.length > totalShown;
-
-// Fetch tags for featured post (bylines are already hydrated by getEmDashCollection)
-let featuredTags: Array<{ slug: string; label: string }> = [];
-const featuredBylines = featuredPost?.data.bylines ?? [];
-if (featuredPost) {
-	const tags = await getEntryTerms("posts", featuredPost.data.id, "tag");
-	featuredTags = tags.map((t) => ({ slug: t.slug, label: t.label }));
-}
-
-// Fetch tags for grid posts (bylines are already hydrated by getEmDashCollection)
-const gridPostsWithTags = await Promise.all(
-	gridPosts.map(async (post) => {
-		const tags = await getEntryTerms("posts", post.data.id, "tag");
-		const bylines = post.data.bylines ?? [];
-		return {
-			post,
-			tags: tags.map((t) => ({ slug: t.slug, label: t.label })),
-			bylines,
-		};
+// 7 latest posts for the featured grid (same count as production)
+const featuredPosts = sortedPosts.slice(0, 7);
+const featuredWithTags = await Promise.all(
+	featuredPosts.map(async (p) => {
+		const tags = await getEntryTerms("posts", p.data.id, "tag");
+		return { post: p, tags };
 	})
 );
 
-// Format date helper
-function formatDate(date: Date | null | undefined) {
-	if (!date) return null;
-	return date.toLocaleDateString("en-US", {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	});
-}
+const formatDate = (d: Date) =>
+	d.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
+
+// Homepage structured data (Person + WebSite + Organization)
+const personSchema = {
+	"@context": "https://schema.org",
+	"@type": "Person",
+	"@id": "https://andresospina.co/#person",
+	name: "Andrés Ospina",
+	alternateName: "MalditoGenio",
+	jobTitle: "Head of Growth",
+	description:
+		"Growth marketer en Colombia con 15+ años de experiencia. Especializado en sistemas de adquisición con IA para SaaS y startups LATAM.",
+	url: Astro.url.origin,
+	image: "/brand/andres-hero.jpg",
+	worksFor: {
+		"@type": "Organization",
+		name: "Robot.com",
+		url: "https://robot.com",
+	},
+	sameAs: [
+		"https://www.linkedin.com/in/andresospina/",
+		"https://x.com/malditogenio",
+		"https://andresospina.co",
+		"https://www.instagram.com/maldito_genio/",
+	],
+	knowsAbout: [
+		"Growth Marketing",
+		"Artificial Intelligence in Marketing",
+		"B2B SaaS Acquisition",
+		"Marketing Automation",
+		"SEO",
+		"Google Ads",
+		"Meta Ads",
+		"Lead Generation",
+		"Conversion Rate Optimization",
+	],
+	address: {
+		"@type": "PostalAddress",
+		addressLocality: "Bogotá",
+		addressCountry: "CO",
+	},
+	knowsLanguage: ["es", "en"],
+};
+
+const websiteSchema = {
+	"@context": "https://schema.org",
+	"@type": "WebSite",
+	"@id": `${Astro.url.origin}/#website`,
+	url: Astro.url.origin,
+	name: "Andrés Ospina — MalditoGenio",
+	description:
+		"Growth marketing, IA aplicada y sistemas de adquisición. Lo que funciona, lo que no, y los números reales.",
+	publisher: { "@id": "https://andresospina.co/#person" },
+	inLanguage: "es-CO",
+	potentialAction: {
+		"@type": "SearchAction",
+		target: `${Astro.url.origin}/search?q={search_term_string}`,
+		"query-input": "required name=search_term_string",
+	},
+};
+
+// Client logos — same as production marquee
+const clientLogos = [
+	{ name: "jbalvin", src: "https://andresospina.co/wp-content/uploads/2025/07/jbalvin.png" },
+	{ name: "kayak", src: "https://andresospina.co/wp-content/uploads/2025/07/kayak.png" },
+	{ name: "pym", src: "https://andresospina.co/wp-content/uploads/2025/07/pym.png" },
+	{ name: "auteco", src: "https://andresospina.co/wp-content/uploads/2025/07/auteco.png" },
+	{ name: "rdstation", src: "https://andresospina.co/wp-content/uploads/2025/07/rdstation.png" },
+	{ name: "codegpt", src: "https://andresospina.co/wp-content/uploads/2025/07/codegpt.png" },
+	{ name: "platzi", src: "https://andresospina.co/wp-content/uploads/2025/07/platzi.png" },
+];
+
+// Topics list ("Sobre lo que escribo" — from production)
+const writingTopics = [
+	"Head of Growth y Head of Marketing",
+	"Consultor de inbound marketing",
+	"Consultor de inteligencia artificial para marketing",
+	"Marketing de automatización",
+];
 ---
 
-<Base title="My Blog" description="Welcome to my blog">
-	{
-		posts.length === 0 ? (
-			<section class="empty-state">
-				<h2>No posts yet</h2>
-				<p>Create your first post in the admin panel.</p>
-				<a href="/_emdash/admin/content/posts/new" class="btn">
-					Create a post
-				</a>
-			</section>
-		) : (
-			<div class="home-content">
-				{/* Featured Post - Side by side */}
-				{featuredPost && (
-					<section class="featured-section">
-						<div class="featured-grid">
-							<a href={`/posts/${featuredPost.id}`} class="featured-image-link">
-								<div class="featured-image">
-									<Image image={featuredPost.data.featured_image} />
-								</div>
-							</a>
-							<div class="featured-content">
-								<div class="featured-meta">
-									{featuredBylines.length > 0 && (
-										<>
-											<div class="featured-bylines">
-												{featuredBylines.slice(0, 2).map((credit, index) => (
-													<>
-														{index > 0 && <span class="byline-sep">,</span>}
-														<span class="featured-byline">
-															{credit.byline.avatarMediaId && (
-																<img
-																	src={`/_emdash/api/media/file/${credit.byline.avatarMediaId}`}
-																	alt={credit.byline.displayName}
-																	class="featured-byline-avatar"
-																/>
-															)}
-															<span class="featured-byline-name">
-																{credit.byline.displayName}
-															</span>
-														</span>
-													</>
-												))}
-												{featuredBylines.length > 2 && (
-													<span class="byline-more">
-														+{featuredBylines.length - 2}
-													</span>
-												)}
-											</div>
-											<span class="meta-dot" />
-										</>
-									)}
-									{formatDate(featuredPost.data.publishedAt) && (
-										<time>{formatDate(featuredPost.data.publishedAt)}</time>
-									)}
-									<span class="meta-dot" />
-									<span>
-										{getReadingTime(featuredPost.data.content)} min read
-									</span>
-								</div>
-								<a
-									href={`/posts/${featuredPost.id}`}
-									class="featured-title-link"
-								>
-									<h1 class="featured-title">{featuredPost.data.title}</h1>
-								</a>
-								{featuredPost.data.excerpt && (
-									<p class="featured-excerpt">{featuredPost.data.excerpt}</p>
-								)}
-								{featuredTags.length > 0 && (
-									<div class="featured-tags">
-										{featuredTags.map((tag) => (
-											<a href={`/tag/${tag.slug}`} class="featured-tag">
-												{tag.label}
-											</a>
-										))}
-									</div>
-								)}
+<Base
+	title="Andrés Ospina — Growth Marketing & IA | MalditoGenio"
+	description="Estratega de growth marketing e inteligencia artificial. Sistemas que aceleran ventas con datos, automatización y agentes de IA. Ex-Platzi, RD Station, CodeGPT."
+	jsonLd={[personSchema, websiteSchema]}
+>
+	<!-- HERO — profile + hola + huge two-tone title + static logo strip -->
+	<section class="home-wp-hero">
+		<div class="c">
+			<div class="home-wp-hero-intro">
+				<img
+					src="/brand/andres-hero.jpg"
+					alt="Andrés Ospina"
+					class="home-wp-hero-avatar"
+					width="160"
+					height="160"
+					loading="eager"
+				/>
+				<div class="home-wp-hero-greeting">
+					<p class="home-wp-hello">Hola, soy</p>
+					<p class="home-wp-name-small">Andrés Ospina</p>
+				</div>
+			</div>
+			<h2 class="home-wp-title">
+				Growth <span class="home-wp-title-muted">Marketing</span> Strategist
+			</h2>
+		</div>
+
+		<!-- Client logos marquee (scrolling) — full width -->
+		<div class="home-wp-logos">
+			<div class="home-wp-logos-track">
+				{
+					[...clientLogos, ...clientLogos, ...clientLogos].map((logo) => (
+						<img src={logo.src} alt={logo.name} class="home-wp-logo" loading="lazy" />
+					))
+				}
+			</div>
+		</div>
+	</section>
+
+	<!-- "ESTO ES LO QUE HAGO" — production copy -->
+	<section class="home-services">
+		<div class="c">
+			<h2 class="home-wp-section-title">
+				Esto es lo<br />que hago
+			</h2>
+			<div class="home-services-copy">
+				<p>
+					Tengo un trabajo simple: <strong>diseñar y ejecutar las máquinas de crecimiento</strong> con las que tu equipo de ventas siempre soñó. Conecto los puntos entre producto, marketing y datos para que dejes de depender de tácticas aisladas y empieces a ver resultados predecibles.
+				</p>
+				<p>
+					Mi método ha sido probado en el campo de batalla con empresas como <strong>RD Station, Kayak y J Balvin</strong>. En CodeGPT, mi sistema de IA generó un crecimiento explosivo. En Platzi, reduje el CPL en un 56%. No contratarme es, literalmente, dejar de ganar mucho dinero.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- FEATURED POSTS -->
+	<section class="home-wp-posts">
+		<div class="c">
+			<div class="home-wp-posts-head">
+				<h2 class="home-wp-posts-title">Lo último<br />del blog</h2>
+				<p class="home-wp-posts-lede">
+					Growth marketing, IA aplicada y sistemas de adquisición. Lo que funciona, lo que no, y los números reales.
+				</p>
+			</div>
+			<div class="home-wp-grid">
+				{featuredWithTags.map(({ post, tags }, i) => (
+					<a href={`/${post.id}`} class={`home-wp-card ${i === 0 ? "home-wp-card-big" : ""}`}>
+						<div class="home-wp-card-media">
+							{post.data.featured_image && (
+								<Image image={post.data.featured_image} />
+							)}
+						</div>
+						<div class="home-wp-card-body">
+							{tags.length > 0 && <div class="home-wp-card-tag">{tags[0].label}</div>}
+							<h3 class="home-wp-card-title">{post.data.title}</h3>
+							{i === 0 && post.data.excerpt && (
+								<p class="home-wp-card-excerpt">{post.data.excerpt}</p>
+							)}
+							<div class="home-wp-card-meta">
+								{post.data.publishedAt && <time>{formatDate(post.data.publishedAt)}</time>}
+								<span class="meta-dot" />
+								<span>{getReadingTime(post.data.content)} min</span>
 							</div>
 						</div>
-					</section>
-				)}
-
-				{/* Latest Posts */}
-				{gridPostsWithTags.length > 0 && (
-					<section class="posts-section">
-						<header class="section-header">
-							<h2 class="section-title">Latest</h2>
-							{hasMorePosts && (
-								<a href="/posts" class="section-link">
-									View all
-								</a>
-							)}
-						</header>
-						<div class="posts-grid">
-							{gridPostsWithTags.map(({ post, tags, bylines }) => (
-								<PostCard
-									title={post.data.title ?? "Untitled"}
-									excerpt={post.data.excerpt}
-									featuredImage={post.data.featured_image}
-									href={`/posts/${post.id}`}
-									date={post.data.publishedAt ?? undefined}
-									readingTime={getReadingTime(post.data.content)}
-									tags={tags}
-									bylines={bylines}
-								/>
-							))}
-						</div>
-					</section>
-				)}
+					</a>
+				))}
 			</div>
-		)
-	}
+			<div class="home-wp-cta">
+				<a href="/blog" class="home-cta home-cta-primary">Ver todos los artículos</a>
+			</div>
+		</div>
+	</section>
+
+	<!-- SOBRE LO QUE ESCRIBO -->
+	<section class="home-topics">
+		<div class="c">
+			<p class="home-topics-eyebrow">Sobre lo que escribo</p>
+			<h2 class="home-topics-title">
+				Los temas que<br />obsesionan a mi teclado
+			</h2>
+			<ul class="home-topics-list">
+				{writingTopics.map((t) => (
+					<li class="home-topic-item">{t}</li>
+				))}
+			</ul>
+		</div>
+	</section>
 </Base>
-
-<style>
-	.home-content {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: var(--spacing-16) var(--spacing-6);
-	}
-
-	/* Featured Section - Side by side */
-	.featured-section {
-		margin-bottom: var(--spacing-16);
-	}
-
-	.featured-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-8);
-		align-items: center;
-	}
-
-	.featured-image-link {
-		grid-column: 1 / 3;
-		display: block;
-		/* Extend to viewport edge, but cap at -6rem minimum extension */
-		margin-left: min(
-			-6rem,
-			calc(-1 * (var(--spacing-6) + (100vw - var(--wide-width)) / 2))
-		);
-	}
-
-	.featured-image {
-		overflow: hidden;
-		border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-		background: var(--color-surface);
-	}
-
-	.featured-image img {
-		width: 100%;
-		height: auto;
-		aspect-ratio: 4 / 3;
-		object-fit: cover;
-		transition: transform 0.4s ease;
-	}
-
-	.featured-image-link:hover .featured-image img,
-	.featured-grid:has(.featured-title-link:hover) .featured-image img {
-		transform: scale(1.02);
-	}
-
-	.featured-content {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-4);
-	}
-
-	.featured-meta {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		column-gap: var(--spacing-3);
-		row-gap: var(--spacing-1);
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.meta-dot {
-		width: 3px;
-		height: 3px;
-		border-radius: 50%;
-		background: var(--color-muted);
-	}
-
-	/* Featured bylines */
-	.featured-bylines {
-		display: flex;
-		align-items: center;
-		gap: 2px;
-	}
-
-	.featured-byline {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--spacing-2);
-	}
-
-	.featured-byline-avatar {
-		width: var(--avatar-size-md);
-		height: var(--avatar-size-md);
-		border-radius: 50%;
-		object-fit: cover;
-	}
-
-	.featured-byline-name {
-		font-weight: 500;
-		color: var(--color-text-secondary);
-	}
-
-	.byline-sep {
-		color: var(--color-muted);
-		margin-right: 2px;
-	}
-
-	.byline-more {
-		font-size: var(--font-size-xs);
-		color: var(--color-muted);
-		margin-left: 2px;
-	}
-
-	.featured-title-link {
-		text-decoration: none;
-		color: inherit;
-	}
-
-	.featured-title {
-		font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
-		font-weight: 700;
-		line-height: var(--leading-tight);
-		letter-spacing: var(--tracking-tight);
-		transition: color var(--transition-fast);
-	}
-
-	.featured-title-link:hover .featured-title,
-	.featured-grid:has(.featured-image-link:hover) .featured-title {
-		color: var(--color-accent);
-	}
-
-	.featured-excerpt {
-		font-size: var(--font-size-lg);
-		line-height: var(--leading-relaxed);
-		color: var(--color-text-secondary);
-	}
-
-	.featured-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--spacing-2);
-		margin-top: var(--spacing-2);
-	}
-
-	.featured-tag {
-		display: inline-block;
-		padding: var(--spacing-1) var(--spacing-3);
-		font-size: var(--font-size-sm);
-		color: var(--color-text-secondary);
-		background: var(--color-surface);
-		border-radius: var(--radius);
-		text-decoration: none;
-		transition:
-			color var(--transition-fast),
-			background var(--transition-fast);
-	}
-
-	.featured-tag:hover {
-		color: var(--color-text);
-		background: var(--color-border);
-	}
-
-	/* Section header */
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		margin-bottom: var(--spacing-8);
-		padding-bottom: var(--spacing-4);
-		border-bottom: 1px solid var(--color-border-subtle);
-	}
-
-	.section-title {
-		font-size: var(--font-size-sm);
-		font-weight: 500;
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wider);
-		color: var(--color-muted);
-	}
-
-	.section-link {
-		font-size: var(--font-size-sm);
-		color: var(--color-accent);
-		text-decoration: none;
-		transition: color var(--transition-fast);
-	}
-
-	.section-link:hover {
-		color: var(--color-accent-hover);
-	}
-
-	/* Posts Grid */
-	.posts-section {
-	}
-
-	.posts-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-12) var(--spacing-8);
-	}
-
-	/* Empty State */
-	.empty-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--spacing-3);
-		text-align: center;
-		padding: var(--spacing-20) var(--spacing-6);
-		max-width: 400px;
-		margin: 0 auto;
-	}
-
-	.empty-state h2 {
-		font-size: var(--font-size-2xl);
-		font-weight: 600;
-	}
-
-	.empty-state p {
-		color: var(--color-muted);
-	}
-
-	.btn {
-		display: inline-block;
-		margin-top: var(--spacing-4);
-		padding: var(--spacing-3) var(--spacing-6);
-		background: var(--color-accent);
-		color: var(--color-on-accent);
-		text-decoration: none;
-		border-radius: var(--radius);
-		font-size: var(--font-size-sm);
-		font-weight: 500;
-		transition: background var(--transition-fast);
-	}
-
-	.btn:hover {
-		background: var(--color-accent-hover);
-	}
-
-	/* Responsive */
-	@media (max-width: 900px) {
-		.home-content {
-			padding: var(--spacing-6) var(--spacing-4) var(--spacing-12);
-		}
-
-		.featured-image-link {
-			margin-left: 0;
-		}
-
-		.featured-grid {
-			grid-template-columns: 1fr;
-			gap: var(--spacing-6);
-		}
-
-		.featured-image {
-			border-radius: var(--radius-lg);
-		}
-
-		.featured-image img {
-			aspect-ratio: 16 / 9;
-		}
-
-		.posts-grid {
-			grid-template-columns: repeat(2, 1fr);
-			gap: var(--spacing-8) var(--spacing-6);
-		}
-	}
-
-	@media (max-width: 600px) {
-		.featured-title {
-			font-size: var(--font-size-2xl);
-		}
-
-		.posts-grid {
-			grid-template-columns: 1fr;
-			gap: var(--spacing-8);
-		}
-	}
-</style>

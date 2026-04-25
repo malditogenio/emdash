@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Disallow: /_emdash/
+Disallow: /search
+
+# Allow AI training / citation crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://andresospina.co/sitemap.xml

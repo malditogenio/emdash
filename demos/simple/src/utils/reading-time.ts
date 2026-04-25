@@ -1,6 +1,10 @@
 import type { PortableTextBlock } from "emdash";
 
-const WORDS_PER_MINUTE = 200;
+// Spanish blog reader, skim + scan behavior: 350 WPM.
+// Medium's 265 assumes word-for-word academic reading, which overshoots for long-form
+// blog posts where readers naturally scan headings, skip familiar context, and accelerate
+// through sections they already know.
+const WORDS_PER_MINUTE = 350;
 const CJK_CHARACTERS_PER_MINUTE = 500;
 const WHITESPACE_REGEX = /\s+/;
 const CJK_CHARACTER_REGEX =
