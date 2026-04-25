@@ -1,5 +1,16 @@
 # emdash
 
+## 0.7.1
+
+### Patch Changes
+
+- [#757](https://github.com/emdash-cms/emdash/pull/757) [`1f0f6f2`](https://github.com/emdash-cms/emdash/commit/1f0f6f2507d026f2b5c60c254432bfc327b3474f) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes two redundant in-scope database queries from the FTS verify-and-repair path. The inner block re-fetched searchable fields and search config that were already loaded in the outer scope of the same method. No behavior change.
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.7.1
+  - @emdash-cms/auth@0.7.1
+  - @emdash-cms/gutenberg-to-portable-text@0.7.1
+
 ## 0.7.0
 
 ### Minor Changes
