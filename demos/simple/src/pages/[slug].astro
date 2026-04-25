@@ -1,0 +1,554 @@
+---
+import {
+	getEmDashEntry,
+	getEmDashCollection,
+	getEntryTerms,
+	getSeoMeta,
+	decodeSlug,
+} from "emdash";
+import { Image, PortableText } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import InlineAd, { type InlineAdVariant } from "../components/InlineAd.astro";
+import { getReadingTime } from "../utils/reading-time";
+
+function pickAdVariant(signals: string[]): InlineAdVariant {
+	const blob = signals.join(" ").toLowerCase();
+	const hasAny = (keys: string[]) => keys.some((k) => blob.includes(k));
+	if (
+		hasAny([
+			"ai",
+			" ia ",
+			"inteligencia artificial",
+			"inteligencia-artificial",
+			"automatizacion",
+			"claude",
+			"chatgpt",
+			"llm",
+			"agentes-ia",
+			"gpt",
+			"openai",
+			"gemini",
+			"prompt",
+		])
+	)
+		return "ia";
+	if (hasAny(["growth-marketing", "performance-marketing", "ppc", "abm", "pipeline", "growth", "funnel"]))
+		return "growth";
+	if (hasAny(["inbound-marketing", "inbound", "agencias", "agencia"]))
+		return "agencias";
+	if (hasAny(["conferencias", "conferencia", "evento", "speaker", "keynote", "charla"]))
+		return "conferencias";
+	return "catchall";
+}
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+
+if (!post) {
+	return Astro.redirect("/404");
+}
+
+Astro.cache.set(cacheHint);
+
+// Get featured image URL for OG fallback
+// The image may have src (external) or meta.storageKey (local)
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	// Check for direct src
+	if (typeof image.src === "string" && image.src) {
+		return image.src.startsWith("http")
+			? image.src
+			: `${Astro.url.origin}${image.src}`;
+	}
+	// Build from storageKey for local images
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	if (storageKey) {
+		return `${Astro.url.origin}/_emdash/api/media/file/${storageKey}`;
+	}
+	return undefined;
+}
+const featuredImageUrl = getImageUrl(post.data.featured_image);
+
+// Generate SEO meta from content
+const seo = getSeoMeta(post, {
+	siteTitle: "Andrés Ospina",
+	siteUrl: Astro.url.origin,
+	path: `/${slug}`,
+	defaultOgImage: featuredImageUrl,
+});
+
+// Article schema (JSON-LD)
+const articleSchema = {
+	"@context": "https://schema.org",
+	"@type": "Article",
+	headline: post.data.title,
+	description: post.data.excerpt ?? seo.description ?? "",
+	image: featuredImageUrl,
+	author: {
+		"@type": "Person",
+		"@id": "https://andresospina.co/#person",
+		name: "Andrés Ospina",
+		url: "https://andresospina.co/sobre-mi",
+	},
+	publisher: {
+		"@type": "Person",
+		"@id": "https://andresospina.co/#person",
+		name: "Andrés Ospina",
+	},
+	datePublished: post.data.publishedAt?.toISOString() ?? null,
+	dateModified: post.data.updatedAt.toISOString(),
+	mainEntityOfPage: {
+		"@type": "WebPage",
+		"@id": `${Astro.url.origin}/${slug}`,
+	},
+	inLanguage: "es-CO",
+};
+
+const breadcrumbSchema = {
+	"@context": "https://schema.org",
+	"@type": "BreadcrumbList",
+	itemListElement: [
+		{ "@type": "ListItem", position: 1, name: "Inicio", item: Astro.url.origin },
+		{ "@type": "ListItem", position: 2, name: "Artículos", item: `${Astro.url.origin}/blog` },
+		{ "@type": "ListItem", position: 3, name: post.data.title, item: `${Astro.url.origin}/${slug}` },
+	],
+};
+
+// Get tags AND categories for this post
+// Note: post.id is the slug, post.data.id is the database ULID
+const tags = await getEntryTerms("posts", post.data.id, "tag");
+const categories = await getEntryTerms("posts", post.data.id, "category").catch(() => []);
+
+// Bylines are already hydrated by getEmDashEntry
+const bylines = post.data.bylines ?? [];
+
+// Get reading time
+const readingTime = getReadingTime(post.data.content);
+
+// Pick inline ad variant from post terms + slug + title as fallback signals
+const adSignals = [
+	...tags.map((t: { slug: string }) => t.slug),
+	...(categories as { slug: string }[]).map((c) => c.slug),
+	slug,
+	post.data.title ?? "",
+];
+const adVariant = pickAdVariant(adSignals);
+
+// Normalize inline ads: cap at MAX_ADS per post and dedupe consecutive same-variant blocks.
+// Content-level inlineAd blocks (from converted legacy CTAs) take priority; template-level
+// injection only fills the remaining slots.
+const MAX_ADS = 2;
+const rawBlocks = Array.isArray(post.data.content) ? post.data.content : [];
+
+type AdBlock = { _type: "inlineAd"; _key?: string; variant?: string };
+const isAd = (b: unknown): b is AdBlock =>
+	typeof b === "object" && b !== null && (b as { _type?: unknown })._type === "inlineAd";
+
+// Pass 1: dedupe consecutive same-variant ads and cap total content ads at MAX_ADS
+const dedupedBlocks: unknown[] = [];
+let contentAdCount = 0;
+let prevVariant: string | undefined;
+for (const block of rawBlocks) {
+	if (isAd(block)) {
+		if (contentAdCount >= MAX_ADS) continue;
+		if (block.variant && block.variant === prevVariant) continue;
+		contentAdCount++;
+		prevVariant = block.variant;
+		dedupedBlocks.push(block);
+	} else {
+		dedupedBlocks.push(block);
+		prevVariant = undefined;
+	}
+}
+
+const contentBlocks = dedupedBlocks;
+const shouldInjectTemplateAd = contentAdCount < MAX_ADS;
+const splitAt = Math.max(1, Math.ceil(contentBlocks.length * 0.4));
+const contentFirstHalf = contentBlocks.slice(0, splitAt);
+const contentSecondHalf = contentBlocks.slice(splitAt);
+const hasSecondHalf = contentSecondHalf.length > 0;
+
+// Get other posts for "More posts" section, with their tags
+// Fetch a few extra in case the current post is among them
+const { entries: recentPosts } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+	limit: 4,
+});
+const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
+
+// Fetch tags for related posts (bylines are already hydrated by getEmDashCollection)
+const otherPostsWithTags = await Promise.all(
+	otherPosts.map(async (p) => {
+		const postTags = await getEntryTerms("posts", p.data.id, "tag");
+		const postBylines = p.data.bylines ?? [];
+		return { post: p, tags: postTags, bylines: postBylines };
+	})
+);
+
+const publishDate =
+	post.data.publishedAt?.toLocaleDateString("es-ES", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	}) ?? null;
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	content={{ collection: "posts", id: post.data.id, slug }}
+	jsonLd={[articleSchema, breadcrumbSchema]}
+>
+	<div class="read-progress" id="read-progress" aria-hidden="true"></div>
+
+	<section class="hero">
+		<div class="c">
+			<nav class="breadcrumb">
+				<a href="/">Inicio</a> › <a href="/blog">Artículos</a> › {post.data.title}
+			</nav>
+			<header class="intro-section">
+				<h1 class="article-title" {...post.edit.title}>{post.data.title}</h1>
+				<div class="article-meta">
+					<a href="https://andresospina.co/sobre-mi" class="article-meta-author">
+						<img
+							src="/brand/andres-hero.jpg"
+							alt="Andrés Ospina"
+							class="article-meta-avatar"
+							width="28"
+							height="28"
+							loading="eager"
+						/>
+						<span class="article-meta-byline">Andrés Ospina</span>
+					</a>
+					<span class="meta-dot" />
+					{
+						publishDate && (
+							<>
+								<time>{publishDate}</time>
+								<span class="meta-dot" />
+							</>
+						)
+					}
+					<span>{readingTime} min de lectura</span>
+				</div>
+				{
+					post.data.excerpt && (
+						<p class="article-excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+					)
+				}
+			</header>
+			{
+				post.data.featured_image && featuredImageUrl && (
+					<div class="article-hero" {...post.edit.featured_image}>
+						<img
+							src={featuredImageUrl}
+							alt={post.data.title}
+							loading="eager"
+							fetchpriority="high"
+							decoding="async"
+							style="width: 100%; height: auto; display: block;"
+						/>
+					</div>
+				)
+			}
+		</div>
+	</section>
+
+	<section>
+		<div class="c">
+			<div class="content-layout">
+				<div class="article-column">
+					<div class="article article-content">
+						<PortableText
+							value={contentFirstHalf}
+							components={{ type: { inlineAd: InlineAd } }}
+						/>
+						{shouldInjectTemplateAd && hasSecondHalf && <InlineAd variant={adVariant} />}
+						{hasSecondHalf && (
+							<PortableText
+								value={contentSecondHalf}
+								components={{ type: { inlineAd: InlineAd } }}
+							/>
+						)}
+					</div>
+
+					{
+						tags.length > 0 && (
+							<div class="article-tags">
+								{tags.map((t) => (
+									<a href={`/tag/${t.slug}`} class="related-link">
+										{t.label}
+									</a>
+								))}
+							</div>
+						)
+					}
+
+					<aside class="author-box">
+						<div class="author-box__main">
+							<img
+								src="/brand/andres-hero.jpg"
+								alt="Andrés Ospina"
+								class="author-photo"
+								width="104"
+								height="104"
+								loading="lazy"
+							/>
+							<div class="author-body">
+								<div class="author-name">Andrés Ospina</div>
+								<div class="author-role">Growth Marketer &amp; Estratega de IA</div>
+								<p class="author-bio">
+									Construyo sistemas de IA que traen tantos leads que ventas te pedirá que pare (Spoiler: No lo haré).
+								</p>
+								<div class="author-links">
+									<a href="https://www.linkedin.com/in/andresospina/" target="_blank" rel="noopener">LinkedIn</a>
+									<span class="author-dot" />
+									<a href="https://x.com/malditogenio" target="_blank" rel="noopener">X</a>
+									<span class="author-dot" />
+									<a href="https://andresospina.co/newsletter" target="_blank" rel="noopener">Newsletter</a>
+									<span class="author-dot" />
+									<a href="https://andresospina.co/sobre-mi">Sobre mí</a>
+								</div>
+							</div>
+						</div>
+					</aside>
+				</div>
+
+				<aside class="toc" id="article-toc" aria-label="Tabla de contenido">
+					<div class="toc-title">Contenido</div>
+					<div class="toc-content" id="toc-content">
+						<!-- Populated by JS -->
+					</div>
+				</aside>
+			</div>
+		</div>
+	</section>
+
+	{
+		otherPostsWithTags.length > 0 && (
+			<section class="related-posts-section">
+				<div class="c">
+					<h2 class="related-posts-title">Artículos relacionados</h2>
+					<div class="related-posts-grid">
+						{otherPostsWithTags.map(({ post: p }) => {
+							const thumbUrl = getImageUrl(p.data.featured_image);
+							const pReadingTime = getReadingTime(p.data.content);
+							return (
+								<a href={`/${p.id}`} class="related-post-card">
+									<div class="related-post-media">
+										{thumbUrl ? (
+											<img
+												src={thumbUrl}
+												alt={p.data.title}
+												loading="lazy"
+												decoding="async"
+												width="400"
+												height="225"
+											/>
+										) : (
+											<div class="related-post-placeholder" aria-hidden="true"></div>
+										)}
+									</div>
+									<div class="related-post-body">
+										<div class="related-post-title">{p.data.title}</div>
+										{p.data.excerpt && (
+											<div class="related-post-excerpt">{p.data.excerpt}</div>
+										)}
+										<div class="related-post-meta">{pReadingTime} min de lectura</div>
+									</div>
+								</a>
+							);
+						})}
+					</div>
+				</div>
+			</section>
+		)
+	}
+
+	<section class="more-link-section">
+		<div class="c">
+			<a href="/blog" class="more-link">← Ver todos los artículos</a>
+		</div>
+	</section>
+
+	<script>
+		// Build a hierarchical TOC: H2 top-level, H3 nested and only visible when
+		// its parent H2 section is active (progressive disclosure, not wall-of-text).
+		function buildToc() {
+			const content = document.querySelector(".article-content");
+			const tocContainer = document.getElementById("toc-content");
+			const tocEl = document.getElementById("article-toc");
+			if (!content || !tocContainer || !tocEl) return;
+
+			const headings = Array.from(content.querySelectorAll("h2, h3")) as HTMLElement[];
+			if (headings.length === 0) {
+				tocEl.style.display = "none";
+				return;
+			}
+
+			const list = document.createElement("ul");
+			list.className = "toc-list";
+
+			type LinkRef = {
+				heading: HTMLElement;
+				link: HTMLAnchorElement;
+				li: HTMLLIElement;
+				parentH2Li: HTMLLIElement | null;
+			};
+			const links: LinkRef[] = [];
+			let currentH2Li: HTMLLIElement | null = null;
+			let currentH2Children: HTMLUListElement | null = null;
+
+			headings.forEach((heading, index) => {
+				if (!heading.id) heading.id = `heading-${index}`;
+				const isH2 = heading.tagName === "H2";
+
+				const li = document.createElement("li");
+				li.className = `toc-item toc-item--${isH2 ? "h2" : "h3"}`;
+				li.dataset.headingId = heading.id;
+
+				const link = document.createElement("a");
+				link.href = `#${heading.id}`;
+				link.className = `toc-link toc-link--${isH2 ? "h2" : "h3"}`;
+				link.textContent = heading.textContent;
+				li.appendChild(link);
+
+				if (isH2) {
+					const childrenUl = document.createElement("ul");
+					childrenUl.className = "toc-children";
+					li.appendChild(childrenUl);
+					list.appendChild(li);
+					currentH2Li = li;
+					currentH2Children = childrenUl;
+					links.push({ heading, link, li, parentH2Li: null });
+				} else if (currentH2Li && currentH2Children) {
+					currentH2Children.appendChild(li);
+					links.push({ heading, link, li, parentH2Li: currentH2Li });
+				} else {
+					// Orphan h3 (article starts with h3) — render at top level
+					list.appendChild(li);
+					links.push({ heading, link, li, parentH2Li: null });
+				}
+			});
+
+			tocContainer.appendChild(list);
+
+			function setActive(activeId: string | null) {
+				links.forEach((l) => l.link.classList.remove("active"));
+				list.querySelectorAll(".toc-item.is-open").forEach((el) =>
+					el.classList.remove("is-open"),
+				);
+				if (!activeId) return;
+				const info = links.find((l) => l.heading.id === activeId);
+				if (!info) return;
+				info.link.classList.add("active");
+				// Expand parent H2 whose section contains this heading
+				const parentH2 = info.parentH2Li ?? info.li;
+				parentH2.classList.add("is-open");
+			}
+
+			// Map each content element to its closest preceding H2/H3 id
+			const contentElements = new Map<Element, string>();
+			let cursor: string | null = null;
+			Array.from(content.children).forEach((el) => {
+				if (el.id && (el.tagName === "H2" || el.tagName === "H3")) {
+					cursor = el.id;
+				}
+				if (cursor) contentElements.set(el, cursor);
+			});
+
+			const visible = new Set<Element>();
+			const observer = new IntersectionObserver(
+				(entries) => {
+					entries.forEach((entry) => {
+						if (entry.isIntersecting) visible.add(entry.target);
+						else visible.delete(entry.target);
+					});
+					const firstVisible = Array.from(contentElements.entries()).find(
+						([el]) => visible.has(el),
+					);
+					setActive(firstVisible?.[1] ?? null);
+				},
+				{
+					rootMargin: `-${getComputedStyle(document.documentElement).scrollPaddingTop || "80px"} 0px -80% 0px`,
+				},
+			);
+
+			contentElements.forEach((_, el) => observer.observe(el));
+		}
+
+		buildToc();
+
+		// Scroll-triggered reveal for related post cards only (honors prefers-reduced-motion).
+		// InlineAd cards show by default — scroll-reveal caused gaps on hash landings and quick scroll.
+		(function () {
+			const prefersReduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+			const reveal = (el: Element) => el.classList.add("is-visible");
+			const cards = document.querySelectorAll(".related-post-card");
+
+			if (prefersReduced) {
+				cards.forEach(reveal);
+				return;
+			}
+
+			if (cards.length) {
+				const cardObs = new IntersectionObserver(
+					(entries) => {
+						entries.forEach((entry) => {
+							if (entry.isIntersecting) {
+								const index = Array.from(cards).indexOf(entry.target as Element);
+								(entry.target as HTMLElement).style.transition =
+									`opacity 0.55s cubic-bezier(0.25, 1, 0.5, 1) ${index * 90}ms, transform 0.55s cubic-bezier(0.25, 1, 0.5, 1) ${index * 90}ms, box-shadow 0.2s, border-color 0.2s`;
+								reveal(entry.target);
+								cardObs.unobserve(entry.target);
+							}
+						});
+					},
+					{ rootMargin: "0px 0px -10% 0px" }
+				);
+				cards.forEach((c) => cardObs.observe(c));
+			}
+		})();
+
+		// Reading progress bar
+		(function () {
+			const bar = document.getElementById("read-progress") as HTMLElement | null;
+			const article = document.querySelector(".article-content") as HTMLElement | null;
+			if (!bar || !article) return;
+			let raf = 0;
+			function update() {
+				const rect = article!.getBoundingClientRect();
+				const total = rect.height - window.innerHeight + 240;
+				const scrolled = -rect.top + 140;
+				const pct = Math.max(0, Math.min(100, (scrolled / total) * 100));
+				bar!.style.width = pct + "%";
+				raf = 0;
+			}
+			addEventListener(
+				"scroll",
+				() => {
+					if (!raf) raf = requestAnimationFrame(update);
+				},
+				{ passive: true }
+			);
+			update();
+		})();
+	</script>
+</Base>
+

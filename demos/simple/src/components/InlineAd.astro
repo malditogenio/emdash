@@ -1,0 +1,276 @@
+---
+export type InlineAdVariant = "ia" | "growth" | "agencias" | "conferencias" | "catchall" | "newsletter" | "curso";
+
+// Dual-purpose: pass {variant} directly OR {node} from a PortableText custom renderer.
+export interface Props {
+	variant?: InlineAdVariant;
+	node?: { _type: "inlineAd"; variant?: InlineAdVariant };
+}
+
+const { variant: variantProp, node } = Astro.props;
+const variant: InlineAdVariant = node?.variant ?? variantProp ?? "catchall";
+
+const VARIANTS: Record<
+	InlineAdVariant,
+	{ theme: "light" | "dark"; title: string; desc: string; cta: string; url: string }
+> = {
+	ia: {
+		theme: "light",
+		title: "Tu equipo puede usar IA de verdad",
+		desc: "No otro taller genérico. Una inmersión con tus datos, tus campañas y tu equipo.",
+		cta: "30 min de asesoría gratis →",
+		url: "https://andresospina.co/inteligencia-artificial-empresas/",
+	},
+	growth: {
+		theme: "light",
+		title: "Más tácticas no van a salvar tu pipeline",
+		desc: "Lo que necesitas es un sistema donde cada pieza se conecta: captura, calificación, nurturing, cierre.",
+		cta: "Tomar asesoría gratuita →",
+		url: "https://andresospina.co/inteligencia-artificial-empresas/",
+	},
+	agencias: {
+		theme: "dark",
+		title: "Sistemas que mueven la caja, no reportes que adornan el inbox",
+		desc: "16 años construyendo máquinas de crecimiento para equipos que ya se cansaron de pagar por entregables.",
+		cta: "Agendar diagnóstico gratis →",
+		url: "https://andresospina.co/contacto/",
+	},
+	conferencias: {
+		theme: "dark",
+		title: "Un buen speaker no te deja un PDF, te deja un equipo que piensa diferente",
+		desc: "Growth e IA con casos reales. Keynotes, workshops, paneles.",
+		cta: "Pedir propuesta para mi evento →",
+		url: "https://andresospina.co/conferencias/",
+	},
+	catchall: {
+		theme: "dark",
+		title: "Todo lo que publico acá es gratis, pero implementarlo tiene precio",
+		desc: "Si algo de lo que leíste te hizo pensar \"esto me está pasando\", hablemos.",
+		cta: "30 min de asesoría gratis →",
+		url: "https://andresospina.co/contacto/",
+	},
+	newsletter: {
+		theme: "light",
+		title: "Lo que sí está funcionando en IA para marketing",
+		desc: "Newsletter corta, sin teoría, sin slop. Solo lo que probé en mis propios proyectos o en los de clientes.",
+		cta: "Suscríbete gratis →",
+		url: "https://andresospina.co/newsletter",
+	},
+	curso: {
+		theme: "light",
+		title: "Curso gratuito de Claude Code para marketers",
+		desc: "Paso a paso, sin prerrequisitos técnicos. Desde cómo abrir una terminal hasta tener tus propios pipelines corriendo en una semana.",
+		cta: "Avísame cuando salga →",
+		url: "https://andresospina.co/curso-claude-code",
+	},
+};
+
+const ad = VARIANTS[variant];
+const avatar = "https://andresospina.co/wp-content/uploads/2022/08/Group-1.png";
+---
+
+<aside class={`mg-ad mg-ad--${ad.theme}`} role="complementary" aria-label="Publicidad">
+	<div class="mg-ad__bg1" aria-hidden="true"></div>
+	<div class="mg-ad__bg2" aria-hidden="true"></div>
+	<div class="mg-ad__main">
+		<div class="mg-ad__header">
+			<img src={avatar} alt="Andrés Ospina" class="mg-ad__avatar" width="44" height="44" loading="lazy" />
+			<span class="mg-ad__badge">Growth Marketing</span>
+		</div>
+		<div class="mg-ad__content">
+			<p class="mg-ad__title">{ad.title}</p>
+			<p class="mg-ad__desc">{ad.desc}</p>
+			<a href={ad.url} class="mg-ad__btn" target="_blank" rel="noopener">{ad.cta}</a>
+		</div>
+	</div>
+</aside>
+
+<style is:global>
+	.mg-ad {
+		position: relative;
+		margin: 3rem 0;
+		width: 100%;
+		display: block;
+	}
+	.mg-ad__bg1,
+	.mg-ad__bg2 {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		background: #fff;
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		border-radius: 24px;
+		box-shadow: 0 4px 10px rgba(1, 1, 32, 0.1);
+		transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+	.mg-ad__bg1 {
+		transform: rotate(1.5deg) translateY(-4px);
+	}
+	.mg-ad__bg2 {
+		transform: rotate(-1.2deg) translateY(3px);
+	}
+	.mg-ad:hover .mg-ad__bg1 {
+		transform: rotate(2.5deg) translateY(-6px);
+	}
+	.mg-ad:hover .mg-ad__bg2 {
+		transform: rotate(-2deg) translateY(4px);
+	}
+
+	.mg-ad__main {
+		position: relative;
+		z-index: 10;
+		border-radius: 24px;
+		padding: 2rem 2rem 1.75rem;
+		box-shadow: 0 4px 10px rgba(1, 1, 32, 0.1);
+		transition: box-shadow 0.2s;
+	}
+	.mg-ad:hover .mg-ad__main {
+		box-shadow: 0 10px 28px rgba(1, 1, 32, 0.14);
+	}
+
+	/* Unified palette — matches the author-box card. Variants only change copy. */
+	.mg-ad .mg-ad__main {
+		background: #ffffff;
+		background-image: linear-gradient(180deg, #ffffff 55%, rgba(140, 180, 220, 0.2));
+		border: 1px solid rgba(0, 0, 0, 0.08);
+	}
+	.mg-ad .mg-ad__badge {
+		color: rgba(0, 0, 0, 0.7);
+		background: rgba(0, 0, 0, 0.06);
+	}
+	.mg-ad .mg-ad__title { color: #1d1d1f; }
+	.mg-ad .mg-ad__desc { color: #6e6e73; }
+	.mg-ad .mg-ad__btn,
+	.mg-ad .mg-ad__btn:link,
+	.mg-ad .mg-ad__btn:visited,
+	.mg-ad .mg-ad__btn:focus,
+	.mg-ad .mg-ad__btn:active { background: #1d1d1f; color: #ffffff !important; }
+	.mg-ad .mg-ad__btn:hover { background: #000; color: #ffffff !important; }
+
+	@media (prefers-color-scheme: dark) {
+		.mg-ad__bg1, .mg-ad__bg2 {
+			background: #0c0c10;
+			border: none;
+			box-shadow: rgba(26, 51, 246, 0.18) 0 0 0 1px, rgba(0, 0, 0, 0.45) 0 12px 24px;
+		}
+		.mg-ad .mg-ad__main {
+			background: #080810;
+			background-image: linear-gradient(180deg, #080810 55%, #111128);
+			border: none;
+			box-shadow: rgba(26, 51, 246, 0.22) 0 0 0 1px, rgba(0, 0, 0, 0.5) 0 12px 30px;
+		}
+		.mg-ad:hover .mg-ad__main {
+			box-shadow: rgba(26, 51, 246, 0.38) 0 0 0 1px, rgba(0, 0, 0, 0.6) 0 16px 40px;
+		}
+		.mg-ad .mg-ad__badge {
+			color: rgba(255, 255, 255, 0.7);
+			background: rgba(255, 255, 255, 0.1);
+		}
+		.mg-ad .mg-ad__title { color: oklch(0.96 0.005 265); }
+		.mg-ad .mg-ad__desc { color: oklch(0.68 0.008 265); }
+		.mg-ad .mg-ad__btn,
+		.mg-ad .mg-ad__btn:link,
+		.mg-ad .mg-ad__btn:visited,
+		.mg-ad .mg-ad__btn:focus,
+		.mg-ad .mg-ad__btn:active {
+			background: oklch(0.96 0.005 265);
+			color: oklch(0.15 0.015 265) !important;
+		}
+		.mg-ad .mg-ad__btn:hover {
+			background: #ffffff;
+			color: oklch(0.12 0.015 265) !important;
+		}
+	}
+
+	.mg-ad__header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+	.mg-ad__avatar {
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		object-fit: cover;
+		flex-shrink: 0;
+		margin: 0 !important;
+		display: block;
+	}
+	.mg-ad__badge {
+		font-size: 0.75rem;
+		font-weight: 700;
+		padding: 0.25rem 0.75rem;
+		border-radius: 999px;
+		display: inline-block;
+		font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+		backdrop-filter: blur(4px);
+	}
+	.mg-ad__content {
+		max-width: 480px;
+	}
+	.mg-ad .mg-ad__title {
+		font-size: 1.5rem;
+		font-weight: 800;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		margin: 0 0 0.65rem !important;
+		font-family: "Gilroy-ExtraBold", -apple-system, BlinkMacSystemFont, sans-serif;
+		max-width: none !important;
+	}
+	.mg-ad .mg-ad__desc {
+		font-size: 0.92rem;
+		line-height: 1.5;
+		margin: 0 !important;
+		font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+		max-width: none !important;
+	}
+	/* CTA button — pill, DM Sans, clear states. Lock color so
+	   article-a:hover from theme.css can't bleed through. */
+	.mg-ad .mg-ad__btn,
+	.mg-ad .mg-ad__btn:link,
+	.mg-ad .mg-ad__btn:visited,
+	.mg-ad .mg-ad__btn:focus,
+	.mg-ad .mg-ad__btn:active {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 1.1rem;
+		padding: 0.78rem 1.5rem;
+		font-size: 0.88rem;
+		font-weight: 700;
+		border-radius: 999px;
+		text-decoration: none !important;
+		border: 1px solid transparent !important;
+		cursor: pointer;
+		font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+		letter-spacing: -0.005em;
+		box-shadow: 0 2px 6px rgba(1, 1, 32, 0.1);
+		transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+			box-shadow 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+			background 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+	}
+	.mg-ad .mg-ad__btn:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 10px 24px rgba(1, 1, 32, 0.2);
+	}
+	.mg-ad .mg-ad__btn:focus-visible {
+		outline: 2px solid #1A33F6;
+		outline-offset: 3px;
+	}
+
+	@media (max-width: 640px) {
+		.mg-ad__main {
+			padding: 1.5rem;
+		}
+		.mg-ad__bg1,
+		.mg-ad__bg2 {
+			display: none;
+		}
+		.mg-ad .mg-ad__title {
+			font-size: 1.2rem;
+		}
+	}
+</style>

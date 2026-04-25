@@ -34,20 +34,17 @@ export default defineConfig({
 			// siteUrl: "https://emdash.local:8443",
 		}),
 	],
+	// Blog post template uses self-hosted Gilroy + Noto Sans + DM Sans (see src/styles/theme.css).
+	// JetBrains Mono is loaded via Astro fonts API below for mono labels.
+	// Inter and Source Serif 4 were removed — they were preloaded on every page (~400KB) and
+	// never referenced by our theme.
 	fonts: [
-		{
-			provider: fontProviders.google(),
-			name: "Inter",
-			cssVariable: "--font-sans",
-			weights: [400, 500, 600, 700],
-			fallbacks: ["sans-serif"],
-		},
 		{
 			provider: fontProviders.google(),
 			name: "JetBrains Mono",
 			cssVariable: "--font-mono",
 			weights: [400, 500],
-			fallbacks: ["monospace"],
+			fallbacks: ["ui-monospace", "SF Mono", "Menlo", "monospace"],
 		},
 	],
 	devToolbar: { enabled: false },

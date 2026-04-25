@@ -1,0 +1,135 @@
+---
+import { getEmDashCollection, getEntryTerms } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import { getReadingTime } from "../utils/reading-time";
+
+const PER_PAGE = 20;
+const pageParam = Astro.url.searchParams.get("page");
+const currentPage = Math.max(1, Number(pageParam) || 1);
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts");
+Astro.cache.set(cacheHint);
+
+const sortedPosts = posts.toSorted((a, b) => {
+	const dateA = a.data.publishedAt?.getTime() ?? 0;
+	const dateB = b.data.publishedAt?.getTime() ?? 0;
+	return dateB - dateA;
+});
+
+const totalPages = Math.max(1, Math.ceil(sortedPosts.length / PER_PAGE));
+const safePage = Math.min(currentPage, totalPages);
+const start = (safePage - 1) * PER_PAGE;
+const pagePosts = sortedPosts.slice(start, start + PER_PAGE);
+
+const postsWithTags = await Promise.all(
+	pagePosts.map(async (post) => {
+		const tags = await getEntryTerms("posts", post.data.id, "tag");
+		return { post, tags };
+	})
+);
+
+const featured = safePage === 1 ? postsWithTags[0] : null;
+const rest = safePage === 1 ? postsWithTags.slice(1) : postsWithTags;
+
+const formatDate = (date: Date) =>
+	date.toLocaleDateString("es-ES", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+
+const pageHref = (n: number) => (n === 1 ? "/blog" : `/blog?page=${n}`);
+---
+
+<Base title="Artículos" description="Todo lo que escribe Andrés Ospina sobre growth marketing, IA y sistemas de adquisición.">
+	<section class="archive-hero">
+		<div class="c">
+			<p class="archive-eyebrow">Artículos</p>
+			<h1 class="archive-title">Lo último del blog</h1>
+			<p class="archive-lede">Growth marketing, IA aplicada, sistemas de adquisición y todo lo que uso para que los números suban. {sortedPosts.length} artículos publicados.</p>
+		</div>
+	</section>
+
+	{
+		featured && (
+			<section class="archive-featured">
+				<div class="c">
+					<a href={`/${featured.post.id}`} class="featured-card">
+						<div class="featured-media">
+							{featured.post.data.featured_image && (
+								<Image image={featured.post.data.featured_image} />
+							)}
+						</div>
+						<div class="featured-body">
+							<div class="featured-eyebrow">Último artículo</div>
+							<h2 class="featured-title">{featured.post.data.title}</h2>
+							{featured.post.data.excerpt && (
+								<p class="featured-excerpt">{featured.post.data.excerpt}</p>
+							)}
+							<div class="featured-meta">
+								<span>Andrés Ospina</span>
+								<span class="meta-dot" />
+								{featured.post.data.publishedAt && (
+									<>
+										<time>{formatDate(featured.post.data.publishedAt)}</time>
+										<span class="meta-dot" />
+									</>
+								)}
+								<span>{getReadingTime(featured.post.data.content)} min de lectura</span>
+							</div>
+						</div>
+					</a>
+				</div>
+			</section>
+		)
+	}
+
+	<section class="archive-list">
+		<div class="c">
+			<div class="archive-grid">
+				{rest.map(({ post, tags }) => (
+					<a href={`/${post.id}`} class="archive-card">
+						<div class="archive-card-media">
+							{post.data.featured_image && (
+								<Image image={post.data.featured_image} />
+							)}
+						</div>
+						<div class="archive-card-body">
+							{tags.length > 0 && (
+								<div class="archive-card-tag">{tags[0].label}</div>
+							)}
+							<h3 class="archive-card-title">{post.data.title}</h3>
+							{post.data.excerpt && (
+								<p class="archive-card-excerpt">{post.data.excerpt}</p>
+							)}
+							<div class="archive-card-meta">
+								{post.data.publishedAt && (
+									<time>{formatDate(post.data.publishedAt)}</time>
+								)}
+								<span class="meta-dot" />
+								<span>{getReadingTime(post.data.content)} min</span>
+							</div>
+						</div>
+					</a>
+				))}
+			</div>
+
+			{totalPages > 1 && (
+				<nav class="archive-pagination" aria-label="Paginación">
+					{safePage > 1 ? (
+						<a href={pageHref(safePage - 1)} class="page-btn">← Anterior</a>
+					) : (
+						<span class="page-btn page-btn-disabled">← Anterior</span>
+					)}
+					<span class="page-indicator">Página {safePage} de {totalPages}</span>
+					{safePage < totalPages ? (
+						<a href={pageHref(safePage + 1)} class="page-btn">Siguiente →</a>
+					) : (
+						<span class="page-btn page-btn-disabled">Siguiente →</span>
+					)}
+				</nav>
+			)}
+		</div>
+	</section>
+</Base>
