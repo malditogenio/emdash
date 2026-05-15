@@ -42,6 +42,7 @@ import { contentUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
+import { getImageDisplayUrl, HeroImageFocusEditor } from "./HeroImageFocusEditor";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
 
@@ -510,6 +511,11 @@ export function ContentEditor({
 		}
 	};
 
+	const hasHeroImageFocusControls =
+		fields.featured_image?.kind === "image" &&
+		fields.hero_image_focus_x?.kind === "number" &&
+		fields.hero_image_focus_y?.kind === "number";
+
 	return (
 		<form
 			onSubmit={handleSubmit}
@@ -690,6 +696,13 @@ export function ContentEditor({
 					>
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => {
+								if (
+									hasHeroImageFocusControls &&
+									(name === "hero_image_focus_x" || name === "hero_image_focus_y")
+								) {
+									return null;
+								}
+
 								const fieldEl = (
 									<FieldRenderer
 										key={name}
@@ -713,6 +726,16 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
+								const heroFocusEditor =
+									name === "featured_image" && hasHeroImageFocusControls ? (
+										<HeroImageFocusEditor
+											image={formData.featured_image}
+											focusX={formData.hero_image_focus_x}
+											focusY={formData.hero_image_focus_y}
+											onChange={handleFieldChange}
+										/>
+									) : null;
+
 								if (
 									name === "featured_image" &&
 									field.kind === "image" &&
@@ -721,15 +744,23 @@ export function ContentEditor({
 									onSeoChange
 								) {
 									return (
-										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
-											<div>{fieldEl}</div>
-											<div>
-												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
+										<React.Fragment key={`${name}-with-seo`}>
+											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+												<div>{fieldEl}</div>
+												<div>
+													<SeoImageField seo={item?.seo} onChange={onSeoChange} />
+												</div>
 											</div>
-										</div>
+											{heroFocusEditor}
+										</React.Fragment>
 									);
 								}
-								return fieldEl;
+								return (
+									<React.Fragment key={name}>
+										{fieldEl}
+										{heroFocusEditor}
+									</React.Fragment>
+								);
 							})}
 						</div>
 					</div>
@@ -1161,6 +1192,18 @@ function FieldRenderer({
 				<Switch id={id} label={label} checked={Boolean(value)} onCheckedChange={handleChange} />
 			);
 
+		case "text":
+			return (
+				<InputArea
+					label={label}
+					id={id}
+					value={typeof value === "string" ? value : ""}
+					onChange={(e) => handleChange(e.target.value)}
+					rows={3}
+					required={field.required}
+				/>
+			);
+
 		case "portableText": {
 			const labelId = `${id}-label`;
 			return (
@@ -1526,14 +1569,7 @@ function ImageFieldRenderer({
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
-	const displayUrl =
-		typeof value === "string"
-			? value
-			: value?.previewUrl ||
-				value?.src ||
-				(value && (!value.provider || value.provider === "local")
-					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
-					: undefined);
+	const displayUrl = getImageDisplayUrl(value);
 
 	const handleSelect = (item: MediaItem) => {
 		const isLocalProvider = !item.provider || item.provider === "local";

@@ -8,7 +8,7 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import Melon from "../components/Melon.astro";
-import "../styles/theme.css";
+import themeStylesheetUrl from "../styles/theme.css?url";
 
 interface Props {
 	title: string;
@@ -47,6 +47,19 @@ const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}
 
 // Fetch primary menu defined in seed
 const menu = await getMenu("primary");
+const brandMenuItems = [
+	{ label: "Sobre mí", url: "/sobre-mi" },
+	{ label: "Recursos", url: "/blog" },
+	{ label: "Conferencias", url: "/conferencias" },
+	{ label: "Eventos", url: "/eventos-ia/" },
+	{ label: "Podcast", url: "https://inboundmonsters.com/", target: "_blank" },
+	{ label: "Trabaja conmigo", url: "/contacto" },
+];
+const menuItems = menu?.items ?? [];
+const isStarterMenu =
+	menuItems.length > 0 &&
+	menuItems.every((item) => ["Home", "About", "Posts"].includes(item.label));
+const headerMenuItems = menuItems.length > 0 && !isStarterMenu ? menuItems : brandMenuItems;
 
 // Fetch pages for footer
 const { entries: pages } = await getEmDashCollection("pages");
@@ -83,6 +96,7 @@ const isLoggedIn = !!Astro.locals.user;
 		<link rel="apple-touch-icon" href="/brand/favicon.png" />
 		<link rel="preload" href="/fonts/gilroy-extrabold.woff2" as="font" type="font/woff2" crossorigin />
 		<link rel="preload" href="/fonts/noto-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="stylesheet" href={themeStylesheetUrl} />
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		<style is:inline>
@@ -122,12 +136,27 @@ const isLoggedIn = !!Astro.locals.user;
 			.header-nav { display: flex; align-items: center; gap: 1.6rem; }
 			.header-nav a { font-size: 0.82rem; color: rgba(0,0,0,0.45); font-family: "Gilroy-ExtraBold", sans-serif; font-weight: 700; white-space: nowrap; }
 			.header-nav .btn-header { background: #1A33F6; color: #fff !important; padding: 0.55rem 1.15rem; border-radius: 999px; font-size: 0.78rem; }
+			.hamburger { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; z-index: 200; }
+			.hamburger span { width: 22px; height: 2px; background: #1d1d1f; border-radius: 2px; }
+			.mobile-menu { display: none; position: fixed; inset: 0; z-index: 99; background: rgba(255,255,255,0.97); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); flex-direction: column; align-items: center; justify-content: center; gap: 2rem; }
+			.mobile-menu.open { display: flex; }
+			.mobile-menu a { font-family: "Gilroy-ExtraBold", sans-serif; font-size: 1.5rem; color: #1d1d1f; text-decoration: none; }
+			@media (max-width: 991.98px) {
+				.header-nav { display: none; }
+				.hamburger { display: flex; }
+				.site-header { top: 0.65rem; width: calc(100% - 1.25rem); max-width: 100%; padding: 0.7rem 1rem; border-radius: 999px; }
+				.header-logo img { height: 1.65rem; min-width: 74px; }
+				.mobile-menu { padding: 6rem 1.5rem 2rem; }
+				.mobile-menu a { font-size: clamp(1.35rem, 7vw, 2rem); line-height: 1.08; }
+			}
 			.site-header.on-dark { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.08); box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
 			.site-header.on-dark .header-logo img { filter: brightness(0) invert(1); }
 			.site-header.on-dark .header-nav a { color: rgba(255,255,255,0.55); }
 			.site-header.on-dark .header-nav a:hover { color: #fff; }
 			.site-header.on-dark .header-nav .btn-header { background: #1A33F6; color: #fff !important; }
 			.site-header.on-dark .hamburger span { background: #fff; }
+			.site-header.on-dark + .mobile-menu { background: rgba(10,10,12,0.97); }
+			.site-header.on-dark + .mobile-menu a { color: #f4f4f4; }
 			/* Hero + intro (above the fold on post pages) */
 			.post-hero {
 				--post-hero-bg: #070707;
@@ -141,7 +170,7 @@ const isLoggedIn = !!Astro.locals.user;
 				overflow: hidden;
 				margin-top: -6rem;
 				padding: clamp(7rem, 10vw, 9.5rem) 0 clamp(3rem, 5.5vw, 4.75rem);
-				background: radial-gradient(circle at 86% 10%, rgba(26,51,246,0.16), transparent 30rem), linear-gradient(135deg, rgba(255,255,255,0.06), transparent 44%), var(--post-hero-bg);
+				background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 44%), var(--post-hero-bg);
 				color: var(--post-hero-ink);
 				border-bottom: 0;
 				box-shadow: none;
@@ -155,10 +184,14 @@ const isLoggedIn = !!Astro.locals.user;
 			.article-hero::before { content: ""; position: absolute; inset: -4.5%; z-index: -1; border-radius: calc(clamp(18px, 2vw, 28px) * 1.25); background-image: var(--hero-image-url); background-position: var(--hero-image-position, 50% 50%); background-size: cover; filter: blur(34px) saturate(1.75) contrast(1.06); opacity: 0.56; transform: scale(1.01); pointer-events: none; }
 			.article-hero::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.12); pointer-events: none; }
 			.article-hero img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: var(--hero-image-position, 50% 50%); border-radius: inherit; margin: 0; border: 0; background: transparent; box-shadow: none; }
+			.article-hero--video { aspect-ratio: 16 / 9; background: #020203; }
+			.hero-video-frame { position: relative; z-index: 1; width: 100%; height: 100%; overflow: hidden; border-radius: inherit; background: #020203; }
+			.hero-video-frame iframe, .hero-video-frame video { display: block; width: 100%; height: 100%; border: 0; border-radius: inherit; background: #020203; }
 			.intro-section { max-width: none; padding: 0; }
 			.article-kicker { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; margin-bottom: 1.1rem; font-family: "Noto Sans", sans-serif; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--post-hero-kicker); }
-			.article-kicker span { display: inline-flex; align-items: center; border: 1px solid rgba(251,248,239,0.14); border-radius: 999px; background: rgba(255,255,255,0.035); padding: 0.24rem 0.58rem; }
-			.article-kicker span::before { content: none; }
+			.article-kicker a, .article-kicker span { display: inline-flex; align-items: center; border: 1px solid rgba(251,248,239,0.14); border-radius: 999px; background: rgba(255,255,255,0.035); padding: 0.24rem 0.58rem; color: currentColor; text-decoration: none; transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease; }
+			.article-kicker a:hover { border-color: rgba(251,248,239,0.32); background: rgba(255,255,255,0.075); color: var(--post-hero-ink); transform: translateY(-1px); }
+			.article-kicker a::before, .article-kicker span::before { content: none; }
 			.intro-section h1.article-title {
 				font-family: "Gilroy-ExtraBold", sans-serif;
 				font-size: clamp(2.6rem, 4.5vw, 4.55rem);
@@ -194,6 +227,37 @@ const isLoggedIn = !!Astro.locals.user;
 			.post-hero--signal .article-hero { border-color: rgba(26,51,246,0.28); }
 			.post-hero--editorial .article-hero { border-color: rgba(26,51,246,0.24); }
 			.post-hero--broadcast .article-hero { border-color: rgba(26,51,246,0.24); }
+			.post-hero--video-card .post-hero-grid { grid-template-columns: minmax(24rem, 1.16fr) minmax(0, 0.84fr); align-items: center; }
+			.post-hero--video-card .intro-section h1.article-title { font-size: clamp(2.3rem, 3.65vw, 3.75rem); line-height: 1.02; max-width: 14ch; }
+			.post-hero--video-card .intro-section .article-excerpt { font-size: clamp(1.05rem, 1.35vw, 1.28rem); line-height: 1.48; max-width: 37rem; }
+			.post-hero-feature { display: grid; gap: clamp(1.8rem, 4vw, 3.25rem); }
+			.post-hero-feature--split { grid-template-columns: minmax(10rem, 14.5rem) minmax(0, 1fr); gap: clamp(2rem, 4.2vw, 4rem); align-items: start; }
+			.post-hero-feature__main { min-width: 0; display: grid; gap: clamp(1.7rem, 3.8vw, 3rem); }
+			.post-hero-feature--split .post-hero-feature__main { display: contents; }
+			.post-hero-feature__intro { max-width: min(920px, 100%); }
+			.post-hero-feature__intro h1.article-title { max-width: 15ch; font-size: clamp(2.65rem, 5.6vw, 5.8rem); line-height: 0.94; letter-spacing: -0.058em; }
+			.post-hero-feature__intro .article-excerpt { max-width: 760px; font-size: clamp(1rem, 1.35vw, 1.28rem); line-height: 1.44; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+			.post-hero-feature--split .post-hero-feature__intro { grid-column: 2; max-width: min(940px, 100%); }
+			.post-hero-feature--split .post-hero-feature__intro h1.article-title { max-width: 15.5ch; font-size: clamp(2.7rem, 5.25vw, 5.45rem); line-height: 0.94; }
+			.post-hero-feature--split .post-hero-feature__intro .article-excerpt { max-width: 720px; }
+			.episode-rail { grid-column: 1; grid-row: 1; min-height: clamp(11rem, 18vw, 17rem); padding-right: clamp(1.25rem, 2.8vw, 2.4rem); border-right: 1px solid rgba(251,248,239,0.16); color: var(--post-hero-muted); display: flex; flex-direction: column; gap: 1.25rem; }
+			.episode-rail__eyebrow, .episode-rail__meta, .episode-rail__series span { font-family: "DM Sans", sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+			.episode-rail__eyebrow { display: block; margin-bottom: 0.55rem; opacity: 0.72; }
+			.episode-rail__author { display: inline-flex; align-items: center; gap: 0.65rem; color: var(--post-hero-ink); text-decoration: none; border: 0; font-family: "Noto Sans", sans-serif; font-weight: 800; font-size: 0.92rem; line-height: 1.15; }
+			.episode-rail__author img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; filter: grayscale(100%); box-shadow: 0 0 0 1px rgba(251,248,239,0.32); }
+			.episode-rail__meta { display: grid; gap: 0.35rem; line-height: 1.45; opacity: 0.86; }
+			.episode-rail__actions { display: flex; gap: 0.75rem; align-items: center; }
+			.episode-action { width: 2.55rem; height: 2.55rem; padding: 0; border-radius: 50%; border: 1px solid rgba(251,248,239,0.28); background: rgba(255,255,255,0.035); color: var(--post-hero-ink); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: inherit; transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease; }
+			.episode-action svg { width: 1.05rem; height: 1.05rem; display: block; }
+			.episode-action:hover, .episode-action[data-copied="true"] { transform: translateY(-1px); background: #1A33F6; border-color: #1A33F6; color: #fff; }
+			.episode-rail__series { margin-top: auto; display: grid; gap: 0.28rem; color: var(--post-hero-muted); text-decoration: none; border: 1px solid rgba(251,248,239,0.14); border-radius: 16px; padding: 0.9rem 1rem; background: rgba(255,255,255,0.035); transition: background 160ms ease, border-color 160ms ease, transform 160ms ease; }
+			.episode-rail__series strong { color: var(--post-hero-ink); font-family: "Gilroy-ExtraBold", sans-serif; font-size: 1.03rem; letter-spacing: -0.015em; line-height: 1.15; }
+			.episode-rail__series:hover { background: rgba(255,255,255,0.075); border-color: rgba(251,248,239,0.28); transform: translateY(-1px); }
+			.article-hero--feature { width: min(100%, 1040px); margin: 0 auto; border-color: rgba(251,248,239,0.16); box-shadow: 0 30px 95px rgba(0,0,0,0.38); }
+			.post-hero-feature--split .article-hero--feature { grid-column: 1 / -1; width: 100%; margin: 0; }
+			.post-hero-feature--split .article-hero--feature::before { inset: -4.75%; filter: blur(38px) saturate(1.72) contrast(1.04); opacity: 0.56; }
+			.post-hero--video-feature { padding-bottom: clamp(4.5rem, 7vw, 7rem); background: radial-gradient(circle at 22% 64%, rgba(255,255,255,0.08), transparent 28rem), linear-gradient(135deg, rgba(255,255,255,0.08), transparent 46%), var(--post-hero-bg); }
+			.post-hero--video-feature .article-hero::before { inset: -3.25%; filter: blur(30px) saturate(1.65) contrast(1.04); opacity: 0.5; transform: scale(1); }
 			.post-hero--long-title .post-hero-grid { grid-template-columns: minmax(20rem, 0.96fr) minmax(0, 1.04fr); align-items: center; }
 			.post-hero--long-title .intro-section h1.article-title { font-size: clamp(2.25rem, 3.75vw, 3.65rem); line-height: 1.03; letter-spacing: -0.042em; max-width: 14.5ch; }
 			.post-hero--long-title .intro-section .article-excerpt { font-size: clamp(1.05rem, 1.35vw, 1.32rem); line-height: 1.44; max-width: 42rem; }
@@ -201,9 +265,30 @@ const isLoggedIn = !!Astro.locals.user;
 			.post-hero + section .content-layout { padding-top: clamp(5rem, 7vw, 7rem); }
 			.post-hero + section .article { padding-top: 0; }
 			.post-hero + section .toc { padding-top: 0; }
+			@media (max-width: 991.98px) {
+				.post-hero--video-card .post-hero-grid { grid-template-columns: 1fr; }
+				.post-hero-feature__intro h1.article-title { font-size: clamp(2.4rem, 9vw, 4rem); max-width: none; }
+				.post-hero-feature--split { grid-template-columns: 1fr; gap: 1.65rem; }
+				.post-hero-feature__main { display: grid; gap: 1.65rem; }
+				.episode-rail { grid-column: auto; grid-row: auto; min-height: 0; padding: 0 0 1.25rem; border-right: 0; border-bottom: 1px solid rgba(251,248,239,0.14); display: grid; grid-template-columns: 1fr auto; align-items: end; }
+				.episode-rail__series { margin-top: 0; grid-column: 1 / -1; }
+				.post-hero-feature--split .post-hero-feature__main { display: grid; }
+				.post-hero-feature--split .post-hero-feature__intro, .post-hero-feature--split .article-hero--feature { grid-column: auto; }
+			}
+			@media (max-width: 767.98px) {
+				.post-hero-feature { gap: 1.65rem; }
+				.article-hero--video { border-radius: 18px; }
+			}
 			@media (prefers-color-scheme: dark) {
-				body.has-post-hero main { background: #060608; }
-				body.has-post-hero .post-hero + section { background: linear-gradient(180deg, #070707 0, #060608 15rem); }
+				body.has-post-hero main { background: #101012; }
+				body.has-post-hero .post-hero + section { background: radial-gradient(circle at 18% 0, rgba(255,255,255,0.026), transparent 26rem), linear-gradient(180deg, #0f0f11 0, #101012 5.5rem); }
+				body.has-post-hero .article-content h1,
+				body.has-post-hero .article-content h2,
+				body.has-post-hero .article-content h3 { color: #f4f4f4 !important; }
+				body.has-post-hero .article-content p,
+				body.has-post-hero .article-content ul,
+				body.has-post-hero .article-content ol,
+				body.has-post-hero .article-content li { color: rgba(244,244,244,0.74); }
 			}
 		</style>
 		{
@@ -239,32 +324,32 @@ const isLoggedIn = !!Astro.locals.user;
 				</a>
 				<nav class="header-nav">
 					{
-						menu?.items.slice(0, -1).map((item) => (
+						headerMenuItems.slice(0, -1).map((item) => (
 							<a href={item.url} target={item.target}>
 								{item.label}
 							</a>
 						))
 					}
 					{
-						menu?.items.length && (
+						headerMenuItems.length && (
 							<a
-								href={menu.items[menu.items.length - 1].url}
-								target={menu.items[menu.items.length - 1].target}
+								href={headerMenuItems[headerMenuItems.length - 1].url}
+								target={headerMenuItems[headerMenuItems.length - 1].target}
 								class="btn-header"
 							>
-								{menu.items[menu.items.length - 1].label}
+								{headerMenuItems[headerMenuItems.length - 1].label}
 							</a>
 						)
 					}
 				</nav>
-				<button class="hamburger" id="hamburger" aria-label="Menú">
+				<button class="hamburger" id="hamburger" aria-label="Menú" aria-expanded="false" aria-controls="mobile-menu">
 					<span></span><span></span><span></span>
 				</button>
 			</div>
 		</header>
 		<nav class="mobile-menu" id="mobile-menu">
 			{
-				menu?.items.map((item) => (
+				headerMenuItems.map((item) => (
 					<a href={item.url} target={item.target}>
 						{item.label}
 					</a>
@@ -291,7 +376,7 @@ const isLoggedIn = !!Astro.locals.user;
 			</div>
 		</footer>
 
-		<script>
+		<script is:inline>
 			// Same headbar behavior used by the Astro event landings:
 			// the pill adapts when its midpoint overlaps a dark section.
 			const header = document.getElementById("site-header");
@@ -326,11 +411,13 @@ const isLoggedIn = !!Astro.locals.user;
 			hamburger?.addEventListener("click", () => {
 				hamburger.classList.toggle("open");
 				mobileMenu?.classList.toggle("open");
+				hamburger.setAttribute("aria-expanded", hamburger.classList.contains("open") ? "true" : "false");
 			});
 			mobileMenu?.querySelectorAll("a").forEach((a) => {
 				a.addEventListener("click", () => {
 					hamburger?.classList.remove("open");
 					mobileMenu?.classList.remove("open");
+					hamburger?.setAttribute("aria-expanded", "false");
 				});
 			});
 

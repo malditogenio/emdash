@@ -1,0 +1,61 @@
+---
+import { getEmDashCollection, getEntryTerms } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import { getReadingTime } from "../../utils/reading-time";
+
+const { entries: posts } = await getEmDashCollection("posts", {
+	where: { tag: "inbound-monsters" },
+	orderBy: { published_at: "desc" },
+});
+
+const episodes = await Promise.all(
+	posts.map(async (post) => {
+		const tags = await getEntryTerms("posts", post.data.id, "tag");
+		const primaryTag = tags.find((tag) => tag.slug !== "inbound-monsters") ?? tags[0];
+		return { post, primaryTag };
+	})
+);
+---
+
+<Base
+	title="Inbound Monsters | Andrés Ospina"
+	description="Episodios de Inbound Monsters con video, resumen y transcripción completa."
+>
+	<section class="archive-hero series-archive-hero">
+		<div class="c">
+			<div class="archive-eyebrow">Serie</div>
+			<h1 class="archive-title">Inbound Monsters</h1>
+			<p class="archive-lede">
+				Episodios en video sobre inbound marketing, automatización, ventas y estrategia digital. Menos teoría de cartelera, más conversación con cicatrices.
+			</p>
+			<p class="series-archive-count">
+				{episodes.length} {episodes.length === 1 ? "episodio" : "episodios"}
+			</p>
+		</div>
+	</section>
+
+	<section class="archive-list series-archive-list">
+		<div class="c">
+			<div class="archive-grid">
+				{episodes.map(({ post, primaryTag }) => (
+					<a href={`/${post.id}`} class="archive-card">
+						<div class="archive-card-media">
+							{post.data.featured_image ? (
+								<Image image={post.data.featured_image} />
+							) : (
+								<div class="card-placeholder"></div>
+							)}
+						</div>
+						<div class="archive-card-body">
+							{primaryTag && <span class="archive-card-tag">{primaryTag.label}</span>}
+							<h2 class="archive-card-title">{post.data.title}</h2>
+							{post.data.excerpt && <p class="archive-card-excerpt">{post.data.excerpt}</p>}
+							<div class="archive-card-meta">{getReadingTime(post.data.content)} min de lectura</div>
+						</div>
+					</a>
+				))}
+			</div>
+		</div>
+	</section>
+</Base>

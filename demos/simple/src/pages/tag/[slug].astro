@@ -23,25 +23,31 @@ const filteredPosts = await Promise.all(
 		return { post, tags };
 	})
 );
+
+const isSeriesArchive = term.slug === "inbound-monsters";
+const archiveLabel = isSeriesArchive ? "Serie" : "Etiqueta";
+const archiveUnit = isSeriesArchive
+	? filteredPosts.length === 1 ? "episodio" : "episodios"
+	: filteredPosts.length === 1 ? "artículo" : "artículos";
 ---
 
 <Base
-	title={`Posts tagged "${term.label}"`}
-	description={`All posts tagged with ${term.label}`}
+	title={`${term.label} | Andrés Ospina`}
+	description={`Archivo de ${term.label}`}
 >
 	<section class="archive-section">
 		<header class="archive-header">
-			<span class="archive-label">Tag</span>
+			<span class="archive-label">{archiveLabel}</span>
 			<h1 class="archive-title">{term.label}</h1>
 			<p class="archive-count">
 				{filteredPosts.length}
-				{filteredPosts.length === 1 ? "post" : "posts"}
+				{archiveUnit}
 			</p>
 		</header>
 
 		{
 			filteredPosts.length === 0 ? (
-				<p class="no-posts">No posts with this tag yet.</p>
+				<p class="no-posts">Todavía no hay artículos con esta etiqueta.</p>
 			) : (
 				<div class="posts-grid">
 					{filteredPosts.map(({ post, tags }) => (
@@ -60,4 +66,3 @@ const filteredPosts = await Promise.all(
 		}
 	</section>
 </Base>
-

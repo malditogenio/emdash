@@ -17,6 +17,7 @@
 			"slug": "posts",
 			"label": "Posts",
 			"labelSingular": "Post",
+			"urlPattern": "/{slug}",
 			"supports": ["drafts", "revisions", "search", "seo"],
 			"commentsEnabled": true,
 			"fields": [
@@ -33,6 +34,35 @@
 					"type": "image"
 				},
 				{
+					"slug": "hero_excerpt",
+					"label": "Bajada del hero",
+					"type": "text"
+				},
+				{
+					"slug": "content_format",
+					"label": "Tipo de contenido",
+					"type": "select",
+					"defaultValue": "article",
+					"validation": { "options": ["article", "podcast", "video"] }
+				},
+				{
+					"slug": "hero_video_url",
+					"label": "Video del hero",
+					"type": "string"
+				},
+				{
+					"slug": "hero_video_layout",
+					"label": "Formato del video hero",
+					"type": "select",
+					"defaultValue": "video-card",
+					"validation": { "options": ["video-card", "video-feature"] }
+				},
+				{
+					"slug": "hero_video_caption",
+					"label": "Caption del video hero",
+					"type": "text"
+				},
+				{
 					"slug": "hero_image_focus_x",
 					"label": "Encuadre hero X (%)",
 					"type": "number",
@@ -45,6 +75,45 @@
 					"type": "number",
 					"defaultValue": 50,
 					"validation": { "min": 0, "max": 100 }
+				},
+				{
+					"slug": "hero_ad_mode",
+					"label": "Microanuncio hero: modo",
+					"type": "select",
+					"defaultValue": "auto",
+					"validation": { "options": ["auto", "custom", "hidden"] }
+				},
+				{
+					"slug": "hero_ad_variant",
+					"label": "Microanuncio hero: oferta base",
+					"type": "select",
+					"defaultValue": "auto",
+					"validation": { "options": ["auto", "ia", "growth", "agencias", "conferencias", "catchall", "newsletter", "curso"] }
+				},
+				{
+					"slug": "hero_ad_eyebrow",
+					"label": "Microanuncio hero: etiqueta",
+					"type": "string"
+				},
+				{
+					"slug": "hero_ad_title",
+					"label": "Microanuncio hero: título",
+					"type": "string"
+				},
+				{
+					"slug": "hero_ad_cta",
+					"label": "Microanuncio hero: botón",
+					"type": "string"
+				},
+				{
+					"slug": "hero_ad_url",
+					"label": "Microanuncio hero: URL",
+					"type": "string"
+				},
+				{
+					"slug": "hero_ad_cover_label",
+					"label": "Microanuncio hero: texto portada",
+					"type": "string"
 				},
 				{
 					"slug": "content",
@@ -129,7 +198,7 @@
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
-				{ "type": "custom", "label": "Sobre mi", "url": "/sobre-mi" },
+				{ "type": "custom", "label": "Sobre mí", "url": "/sobre-mi" },
 				{ "type": "custom", "label": "Recursos", "url": "/blog" },
 				{ "type": "custom", "label": "Conferencias", "url": "/conferencias" },
 				{ "type": "custom", "label": "Eventos", "url": "/eventos-ia/" },

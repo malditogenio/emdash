@@ -1,87 +1,154 @@
 ---
 export type InlineAdVariant = "ia" | "growth" | "agencias" | "conferencias" | "catchall" | "newsletter" | "curso";
+export type InlineAdPlacement = "inline" | "hero";
+export type InlineAdDensity = "default" | "compact";
+export interface InlineAdOverride {
+	title?: string;
+	desc?: string;
+	cta?: string;
+	url?: string;
+	heroTitle?: string;
+	heroEyebrow?: string;
+	heroCta?: string;
+	coverLabel?: string;
+}
 
 // Dual-purpose: pass {variant} directly OR {node} from a PortableText custom renderer.
 export interface Props {
 	variant?: InlineAdVariant;
+	placement?: InlineAdPlacement;
+	density?: InlineAdDensity;
+	override?: InlineAdOverride;
 	node?: { _type: "inlineAd"; variant?: InlineAdVariant };
 }
 
-const { variant: variantProp, node } = Astro.props;
+const { variant: variantProp, placement = "inline", density = "default", override, node } = Astro.props;
 const variant: InlineAdVariant = node?.variant ?? variantProp ?? "catchall";
 
 const VARIANTS: Record<
 	InlineAdVariant,
-	{ theme: "light" | "dark"; title: string; desc: string; cta: string; url: string }
+	{
+		theme: "light" | "dark";
+		title: string;
+		desc: string;
+		cta: string;
+		url: string;
+		heroTitle?: string;
+		heroEyebrow?: string;
+		heroCta?: string;
+	}
 > = {
 	ia: {
 		theme: "light",
-		title: "Tu equipo puede usar IA de verdad",
-		desc: "No otro taller genérico. Una inmersión con tus datos, tus campañas y tu equipo.",
-		cta: "30 min de asesoría gratis →",
+		title: "IA útil para equipos que ya están operando",
+		desc: "Una guía para encontrar dónde un agente, una automatización o un mejor flujo de datos sí puede quitar fricción real.",
+		cta: "Ver por dónde empezar →",
 		url: "https://andresospina.co/inteligencia-artificial-empresas/",
+		heroTitle: "IA donde sí mueve el sistema",
+		heroEyebrow: "Guía práctica",
 	},
 	growth: {
 		theme: "light",
-		title: "Más tácticas no van a salvar tu pipeline",
-		desc: "Lo que necesitas es un sistema donde cada pieza se conecta: captura, calificación, nurturing, cierre.",
-		cta: "Tomar asesoría gratuita →",
+		title: "Un mapa simple para encontrar fugas de growth",
+		desc: "Oferta, contenido, CRM, scoring, nurturing y handoff a ventas vistos como sistema, no como piezas sueltas peleándose.",
+		cta: "Usar el mapa →",
 		url: "https://andresospina.co/inteligencia-artificial-empresas/",
+		heroTitle: "Encuentra la fuga antes de meter más presión",
+		heroEyebrow: "Mapa de growth",
 	},
 	agencias: {
 		theme: "dark",
-		title: "Sistemas que mueven la caja, no reportes que adornan el inbox",
-		desc: "16 años construyendo máquinas de crecimiento para equipos que ya se cansaron de pagar por entregables.",
-		cta: "Agendar diagnóstico gratis →",
+		title: "Para pasar de entregables a sistema comercial",
+		desc: "Un recurso para mirar qué debería conectar marketing, datos y ventas cuando el reporte ya no alcanza.",
+		cta: "Ver el enfoque →",
 		url: "https://andresospina.co/contacto/",
+		heroTitle: "Menos piezas sueltas, más sistema",
+		heroEyebrow: "Para equipos con tracción",
 	},
 	conferencias: {
 		theme: "dark",
-		title: "Un buen speaker no te deja un PDF, te deja un equipo que piensa diferente",
-		desc: "Growth e IA con casos reales. Keynotes, workshops, paneles.",
-		cta: "Pedir propuesta para mi evento →",
+		title: "Growth e IA explicado sin teatro corporativo",
+		desc: "Charlas y workshops para que el equipo salga con criterio operativo, no con otra carpeta mental de frases bonitas.",
+		cta: "Ver temas posibles →",
 		url: "https://andresospina.co/conferencias/",
+		heroTitle: "Una charla que deje criterio",
+		heroEyebrow: "Growth e IA para equipos",
 	},
 	catchall: {
 		theme: "dark",
-		title: "Todo lo que publico acá es gratis, pero implementarlo tiene precio",
-		desc: "Si algo de lo que leíste te hizo pensar \"esto me está pasando\", hablemos.",
-		cta: "30 min de asesoría gratis →",
+		title: "Una forma más clara de ordenar este problema",
+		desc: "Si algo de esto se parece demasiado a tu operación, aquí tienes un punto de partida para mirarlo con menos ruido.",
+		cta: "Ver el punto de partida →",
 		url: "https://andresospina.co/contacto/",
+		heroTitle: "Un siguiente paso útil",
+		heroEyebrow: "Recurso recomendado",
 	},
 	newsletter: {
 		theme: "light",
-		title: "Lo que sí está funcionando en IA para marketing",
-		desc: "Newsletter corta, sin teoría, sin slop. Solo lo que probé en mis propios proyectos o en los de clientes.",
+		title: "Growth e IA sin tofu de LinkedIn",
+		desc: "Ideas cortas, pruebas reales y cosas raras que funcionan. Sin teoría inflada para verse inteligente.",
 		cta: "Suscríbete gratis →",
 		url: "https://andresospina.co/newsletter",
+		heroTitle: "Growth e IA sin humo",
+		heroEyebrow: "Newsletter",
 	},
 	curso: {
 		theme: "light",
-		title: "Curso gratuito de Claude Code para marketers",
-		desc: "Paso a paso, sin prerrequisitos técnicos. Desde cómo abrir una terminal hasta tener tus propios pipelines corriendo en una semana.",
+		title: "Claude Code para marketers que quieren producir",
+		desc: "Desde abrir una terminal hasta construir pipelines propios, explicado para gente que quiere producir, no presumir stack.",
 		cta: "Avísame cuando salga →",
 		url: "https://andresospina.co/curso-claude-code",
+		heroTitle: "Claude Code para marketers",
+		heroEyebrow: "Curso gratuito",
 	},
 };
 
-const ad = VARIANTS[variant];
+const adOverride = Object.fromEntries(
+	Object.entries(override ?? {}).filter(([, value]) => typeof value === "string" && value.trim().length > 0)
+) as InlineAdOverride;
+const baseAd = VARIANTS[variant];
+const ad = {
+	...baseAd,
+	...adOverride,
+	heroTitle: adOverride.heroTitle ?? adOverride.title ?? baseAd.heroTitle,
+	heroEyebrow: adOverride.heroEyebrow ?? baseAd.heroEyebrow,
+	heroCta: adOverride.heroCta ?? adOverride.cta ?? baseAd.heroCta,
+};
 const avatar = "https://andresospina.co/wp-content/uploads/2022/08/Group-1.png";
+const coverLabel =
+	adOverride.coverLabel ?? (variant === "curso" ? "Claude Code" : variant === "conferencias" ? "Keynote" : "Growth OS");
 ---
 
-<aside class={`mg-ad mg-ad--${ad.theme}`} role="complementary" aria-label="Publicidad">
+<aside class={`mg-ad mg-ad--${ad.theme} mg-ad--${placement} mg-ad--${density}`} role="complementary" aria-label="Publicidad">
 	<div class="mg-ad__bg1" aria-hidden="true"></div>
 	<div class="mg-ad__bg2" aria-hidden="true"></div>
 	<div class="mg-ad__main">
-		<div class="mg-ad__header">
-			<img src={avatar} alt="Andrés Ospina" class="mg-ad__avatar" width="44" height="44" loading="lazy" />
-			<span class="mg-ad__badge">Growth Marketing</span>
-		</div>
-		<div class="mg-ad__content">
-			<p class="mg-ad__title">{ad.title}</p>
-			<p class="mg-ad__desc">{ad.desc}</p>
-			<a href={ad.url} class="mg-ad__btn" target="_blank" rel="noopener">{ad.cta}</a>
-		</div>
+		{
+			placement === "hero" ? (
+				<a href={ad.url} class="mg-ad-hero" target="_blank" rel="noopener">
+					<div class="mg-ad-hero__cover" aria-hidden="true">
+						<span>{coverLabel}</span>
+					</div>
+					<div class="mg-ad-hero__body">
+						<span class="mg-ad-hero__eyebrow">{ad.heroEyebrow ?? "Recurso recomendado"}</span>
+						<span class="mg-ad-hero__title">{ad.heroTitle ?? ad.title}</span>
+						<span class="mg-ad-hero__cta">{ad.heroCta ?? ad.cta}</span>
+					</div>
+				</a>
+			) : (
+				<>
+					<div class="mg-ad__header">
+						<img src={avatar} alt="Andrés Ospina" class="mg-ad__avatar" width="44" height="44" loading="lazy" />
+						<span class="mg-ad__badge">Growth Marketing</span>
+					</div>
+					<div class="mg-ad__content">
+						<p class="mg-ad__title">{ad.title}</p>
+						<p class="mg-ad__desc">{ad.desc}</p>
+						<a href={ad.url} class="mg-ad__btn" target="_blank" rel="noopener">{ad.cta}</a>
+					</div>
+				</>
+			)
+		}
 	</div>
 </aside>
 
@@ -149,6 +216,200 @@ const avatar = "https://andresospina.co/wp-content/uploads/2022/08/Group-1.png";
 	.mg-ad .mg-ad__btn:active { background: #1d1d1f; color: #ffffff !important; }
 	.mg-ad .mg-ad__btn:hover { background: #000; color: #ffffff !important; }
 
+	.mg-ad--dark .mg-ad__bg1,
+	.mg-ad--dark .mg-ad__bg2 {
+		background: #0c0c10;
+		border: none;
+		box-shadow: rgba(26, 51, 246, 0.18) 0 0 0 1px, rgba(0, 0, 0, 0.45) 0 12px 24px;
+	}
+	.mg-ad--dark .mg-ad__main {
+		background: #080810;
+		background-image: linear-gradient(180deg, #080810 55%, #111128);
+		border: none;
+		box-shadow: rgba(26, 51, 246, 0.22) 0 0 0 1px, rgba(0, 0, 0, 0.5) 0 12px 30px;
+	}
+	.mg-ad--dark:hover .mg-ad__main {
+		box-shadow: rgba(26, 51, 246, 0.38) 0 0 0 1px, rgba(0, 0, 0, 0.6) 0 16px 40px;
+	}
+	.mg-ad--dark .mg-ad__badge {
+		color: rgba(255, 255, 255, 0.7);
+		background: rgba(255, 255, 255, 0.1);
+	}
+	.mg-ad--dark .mg-ad__title { color: oklch(0.96 0.005 265); }
+	.mg-ad--dark .mg-ad__desc { color: oklch(0.68 0.008 265); }
+	.mg-ad--dark .mg-ad__btn,
+	.mg-ad--dark .mg-ad__btn:link,
+	.mg-ad--dark .mg-ad__btn:visited,
+	.mg-ad--dark .mg-ad__btn:focus,
+	.mg-ad--dark .mg-ad__btn:active {
+		background: oklch(0.96 0.005 265);
+		color: oklch(0.15 0.015 265) !important;
+	}
+	.mg-ad--dark .mg-ad__btn:hover {
+		background: #ffffff;
+		color: oklch(0.12 0.015 265) !important;
+	}
+
+	.mg-ad--hero {
+		margin: clamp(1.15rem, 2vw, 1.65rem) 0 0;
+		max-width: 46rem;
+	}
+	.mg-ad--hero .mg-ad__bg1,
+	.mg-ad--hero .mg-ad__bg2 {
+		display: none;
+	}
+	.mg-ad--hero .mg-ad__main {
+		padding: 0;
+		border-radius: 18px;
+		background: #ffffff;
+		background-image: none;
+		border: 1px solid rgba(255, 255, 255, 0.16);
+		box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
+		overflow: hidden;
+	}
+	.mg-ad--hero:hover .mg-ad__main {
+		box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28);
+	}
+	.mg-ad-hero,
+	.mg-ad-hero:link,
+	.mg-ad-hero:visited,
+	.mg-ad-hero:focus,
+	.mg-ad-hero:active {
+		display: grid;
+		grid-template-columns: clamp(5rem, 9vw, 7.25rem) minmax(0, 1fr);
+		gap: clamp(0.95rem, 2vw, 1.25rem);
+		align-items: center;
+		padding: clamp(0.85rem, 1.7vw, 1.1rem);
+		color: #151515 !important;
+		text-decoration: none !important;
+		border: 0 !important;
+	}
+	.mg-ad-hero:hover {
+		color: #151515 !important;
+	}
+	.mg-ad-hero__cover {
+		min-height: clamp(4.6rem, 7.2vw, 6rem);
+		border-radius: 13px;
+		display: flex;
+		align-items: flex-end;
+		padding: 0.7rem;
+		background:
+			linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 42%),
+			linear-gradient(150deg, #1A33F6 0%, #0b0b0f 72%);
+		box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+		overflow: hidden;
+		position: relative;
+	}
+	.mg-ad-hero__cover::before {
+		content: "";
+		position: absolute;
+		inset: 16% -35% auto 28%;
+		height: 78%;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.18);
+		transform: rotate(-18deg);
+	}
+	.mg-ad-hero__cover span {
+		position: relative;
+		z-index: 1;
+		max-width: 5rem;
+		font-family: "Gilroy-ExtraBold", -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 0.72rem;
+		line-height: 0.95;
+		letter-spacing: -0.035em;
+		color: #ffffff;
+	}
+	.mg-ad-hero__body {
+		display: grid;
+		gap: 0.25rem;
+		min-width: 0;
+	}
+	.mg-ad-hero__eyebrow {
+		font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 0.62rem;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: rgba(21, 21, 21, 0.58);
+	}
+	.mg-ad-hero__title {
+		font-family: "Gilroy-ExtraBold", -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: clamp(0.98rem, 1.25vw, 1.2rem);
+		line-height: 1.08;
+		letter-spacing: -0.035em;
+		color: #151515;
+	}
+	.mg-ad-hero__cta {
+		width: fit-content;
+		margin-top: 0.35rem;
+		padding: 0.5rem 0.78rem;
+		border-radius: 999px;
+		background: #1d1d1f;
+		color: #ffffff;
+		font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 0.72rem;
+		font-weight: 800;
+		line-height: 1;
+		transition: transform 0.18s ease, background 0.18s ease;
+	}
+	.mg-ad-hero:hover .mg-ad-hero__cta {
+		background: #1A33F6;
+		transform: translateY(-1px);
+	}
+
+	.mg-ad--hero.mg-ad--compact {
+		margin-top: clamp(0.72rem, 1.25vw, 1.05rem);
+		max-width: min(37rem, 100%);
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad__main {
+		border-radius: 16px;
+		box-shadow: 0 14px 38px rgba(0, 0, 0, 0.2);
+	}
+	.mg-ad--hero.mg-ad--compact:hover .mg-ad__main {
+		box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero {
+		grid-template-columns: 4.7rem minmax(0, 1fr);
+		gap: 0.78rem;
+		padding: 0.68rem 0.72rem;
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero__cover {
+		min-height: 4.15rem;
+		border-radius: 12px;
+		padding: 0.55rem;
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero__cover span {
+		max-width: 4.2rem;
+		font-size: 0.62rem;
+		line-height: 0.94;
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero__body {
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		column-gap: 0.78rem;
+		row-gap: 0.12rem;
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero__eyebrow {
+		grid-column: 1 / -1;
+		font-size: 0.55rem;
+		letter-spacing: 0.095em;
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero__title {
+		font-size: clamp(0.86rem, 0.95vw, 1rem);
+		line-height: 1.05;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.mg-ad--hero.mg-ad--compact .mg-ad-hero__cta {
+		grid-column: 2;
+		grid-row: 2;
+		margin-top: 0;
+		padding: 0.43rem 0.66rem;
+		font-size: 0.64rem;
+		white-space: nowrap;
+	}
+
 	@media (prefers-color-scheme: dark) {
 		.mg-ad__bg1, .mg-ad__bg2 {
 			background: #0c0c10;
@@ -181,6 +442,13 @@ const avatar = "https://andresospina.co/wp-content/uploads/2022/08/Group-1.png";
 		.mg-ad .mg-ad__btn:hover {
 			background: #ffffff;
 			color: oklch(0.12 0.015 265) !important;
+		}
+		.mg-ad--hero .mg-ad__main,
+		.mg-ad--hero:hover .mg-ad__main {
+			background: #ffffff;
+			background-image: none;
+			border: 1px solid rgba(255, 255, 255, 0.16);
+			box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
 		}
 	}
 
@@ -264,6 +532,41 @@ const avatar = "https://andresospina.co/wp-content/uploads/2022/08/Group-1.png";
 	@media (max-width: 640px) {
 		.mg-ad__main {
 			padding: 1.5rem;
+		}
+		.mg-ad--hero .mg-ad__main {
+			padding: 0;
+		}
+		.mg-ad-hero {
+			grid-template-columns: 4.8rem minmax(0, 1fr);
+			gap: 0.85rem;
+			padding: 0.75rem;
+		}
+		.mg-ad-hero__cover {
+			min-height: 4.6rem;
+		}
+		.mg-ad-hero__cta {
+			font-size: 0.68rem;
+		}
+		.mg-ad--hero.mg-ad--compact {
+			max-width: none;
+		}
+		.mg-ad--hero.mg-ad--compact .mg-ad-hero {
+			grid-template-columns: 4.6rem minmax(0, 1fr);
+			gap: 0.72rem;
+			padding: 0.72rem;
+		}
+		.mg-ad--hero.mg-ad--compact .mg-ad-hero__body {
+			grid-template-columns: 1fr;
+			row-gap: 0.22rem;
+		}
+		.mg-ad--hero.mg-ad--compact .mg-ad-hero__eyebrow,
+		.mg-ad--hero.mg-ad--compact .mg-ad-hero__title,
+		.mg-ad--hero.mg-ad--compact .mg-ad-hero__cta {
+			grid-column: auto;
+			grid-row: auto;
+		}
+		.mg-ad--hero.mg-ad--compact .mg-ad-hero__title {
+			white-space: normal;
 		}
 		.mg-ad__bg1,
 		.mg-ad__bg2 {
